@@ -1,0 +1,84 @@
+subprojects {
+    apply plugin : 'java'
+    apply plugin : 'eclipse'
+    apply plugin : 'idea'
+
+    repositories {
+        mavenCentral()
+    }
+
+    eclipse {
+        classpath {
+            downloadSources=true
+        }
+    }
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+    processResources {
+        exclude ('conf/')
+        includeEmptyDirs = false
+        destinationDir = compileJava.destinationDir
+    }
+    compileJava.dependsOn processResources
+    
+    configurations {
+        all*.exclude group: "commons-logging", module: "commons-logging"
+    }
+    
+    dependencies {
+        compile "org.slf4j:slf4j-api:1.7.7"
+        compile "org.slf4j:jcl-over-slf4j:1.7.7"
+        compile "ch.qos.logback:logback-classic:1.1.2"
+        testCompile "junit:junit:4.11"
+    }
+    
+    task dist(dependsOn: 'jar', type: Zip) {
+        description = 'package module.'
+        into('bin') {
+            from 'bin'
+        }
+        into('libs') {
+            from libsDir
+            from configurations.compile
+        }
+        into('/') {
+            from sourceSets.main.resources
+            include('conf/')
+        }
+    }
+}
+configure(subprojects) { subproject ->
+    group = 'com.sample'
+    jar {
+        version = '0.1-SNAPSHOT'
+        manifest.attributes["Created-By"] =  "${System.getProperty("java.version")}"
+        manifest.attributes["Implementation-Title"] = subproject.name
+        manifest.attributes["Implementation-Version"] = subproject.version
+    }
+}
+allprojects {
+    defaultTasks 'clean', 'build'
+}
+project('domain') {
+    description = 'domain'
+    dependencies {
+        compile "javax.inject:javax.inject:1"
+    }
+}
+project('batch') {
+    description = 'batch'
+    dependencies {
+        compile project(':domain')
+    }
+    build.dependsOn dist
+}
+project('web') {
+    description = 'web'
+    dependencies {
+        compile project(':domain')
+    }
+    build.dependsOn dist
+}
